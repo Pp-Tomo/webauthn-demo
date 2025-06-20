@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebAuthn Passkey Demo</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #555;
+        }
+        
+        input[type="email"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        
+        input[type="email"]:focus {
+            outline: none;
+            border-color: #007AFF;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 15px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        #register {
+            background: #007AFF;
+            color: white;
+        }
+        
+        #register:hover:not(:disabled) {
+            background: #0056CC;
+        }
+        
+        #login {
+            background: #34C759;
+            color: white;
+        }
+        
+        #login:hover:not(:disabled) {
+            background: #28A745;
+        }
+        
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+        
+        .status.success {
+            background: #D4F6DC;
+            color: #0F5132;
+            border: 1px solid #34C759;
+        }
+        
+        .status.error {
+            background: #F8D7DA;
+            color: #721C24;
+            border: 1px solid #DC3545;
+        }
+        
+        .status.info {
+            background: #CCE5FF;
+            color: #004085;
+            border: 1px solid #007AFF;
+        }
+        
+        .fingerprint-icon {
+            text-align: center;
+            font-size: 48px;
+            margin: 20px 0;
+        }
+        
+        .support-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #FFF3CD;
+            border: 1px solid #FFECB5;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #664D03;
+        }
+        
+        .auth-type-selector {
+            margin: 20px 0;
+            padding: 15px;
+            background: #E3F2FD;
+            border: 1px solid #BBDEFB;
+            border-radius: 8px;
+        }
+        
+        .auth-type-selector h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+            color: #1976D2;
+        }
+        
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .radio-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .radio-option input[type="radio"] {
+            margin: 0;
+        }
+        
+        .radio-option label {
+            margin: 0;
+            font-weight: normal;
+            cursor: pointer;
+        }
+        
+        .qr-hint {
+            margin-top: 10px;
+            padding: 10px;
+            background: #FFF9C4;
+            border: 1px solid #FFF176;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #F57F17;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 WebAuthn Passkey Demo</h1>
+        
+        <div class="fingerprint-icon">👆</div>
+        
+        <div class="form-group">
+            <label for="email">Passkey 名称:</label>
+            <input type="email" id="email" placeholder="请输入您的Passkey名称" value="user@example.com">
+        </div>
+        
+        <div class="auth-type-selector">
+            <h3>选择认证器类型</h3>
+            <div class="radio-group">
+                <div class="radio-option">
+                    <input type="radio" id="platform" name="authType" value="platform" checked>
+                    <label for="platform">📱 本设备生物识别</label>
+                </div>
+                <div class="radio-option">
+                    <input type="radio" id="cross-platform" name="authType" value="cross-platform">
+                    <label for="cross-platform">📲 跨设备 (扫码到手机)</label>
+                </div>
+                <div class="radio-option">
+                    <input type="radio" id="any" name="authType" value="any">
+                    <label for="any">🔓 任意可用认证器</label>
+                </div>
+            </div>
+            <div id="qr-hint" class="qr-hint">
+                <strong>💡 跨设备提示:</strong> 选择此选项后，您的设备可能会显示二维码，请使用手机扫描二维码来完成认证。认证成功后，凭证将存储在您的手机上。
+            </div>
+        </div>
+        
+        <div class="button-group">
+            <button id="register">🔑 注册 Passkey</button>
+            <button id="login">🚀 使用 Passkey 登录</button>
+        </div>
+        
+        <div id="status" class="status"></div>
+        
+        <div class="support-info">
+            <strong>支持情况:</strong>
+            <div id="support-status">正在检查 WebAuthn 支持...</div>
+        </div>
+    </div>
+
+    <script>
+        // Utility functions for base64url encoding/decoding
+        function base64urlToBuffer(base64url) {
+            const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+            const padded = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=');
+            const binary = atob(padded);
+            return Uint8Array.from(binary, c => c.charCodeAt(0));
+        }
+        
+        function bufferToBase64url(buffer) {
+            const binary = String.fromCharCode(...new Uint8Array(buffer));
+            const base64 = btoa(binary);
+            return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+        }
+        
+        // Generate random challenge
+        function generateChallenge() {
+            const array = new Uint8Array(32);
+            crypto.getRandomValues(array);
+            return bufferToBase64url(array);
+        }
+        
+        // Generate user ID
+        function generateUserId(email) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(email + Date.now());
+            return crypto.subtle.digest('SHA-256', data).then(hash => bufferToBase64url(hash));
+        }
+        
+        // Show status message
+        function showStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+            
+            if (type === 'success' || type === 'error') {
+                setTimeout(() => {
+                    status.style.display = 'none';
+                }, 5000);
+            }
+        }
+        
+        // Check WebAuthn support
+        function checkSupport() {
+            const supportStatus = document.getElementById('support-status');
+            
+            if (!window.PublicKeyCredential) {
+                supportStatus.innerHTML = '❌ 您的浏览器不支持 WebAuthn';
+                document.getElementById('register').disabled = true;
+                document.getElementById('login').disabled = true;
+                return false;
+            }
+            
+            let supportText = '✅ WebAuthn 基础支持: 可用<br>';
+            
+            // Check platform authenticator
+            PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+                .then(available => {
+                    if (available) {
+                        supportText += '✅ 平台认证器 (生物识别): 可用<br>';
+                    } else {
+                        supportText += '❌ 平台认证器 (生物识别): 不可用<br>';
+                    }
+                    supportText += '✅ 跨设备认证器 (扫码): 可用';
+                    supportStatus.innerHTML = supportText;
+                })
+                .catch(() => {
+                    supportText += '❓ 平台认证器: 检测失败<br>';
+                    supportText += '✅ 跨设备认证器 (扫码): 可用';
+                    supportStatus.innerHTML = supportText;
+                });
+            
+            return true;
+        }
+        
+        // Get selected auth type
+        function getSelectedAuthType() {
+            const selected = document.querySelector('input[name="authType"]:checked');
+            return selected ? selected.value : 'platform';
+        }
+        
+        // Register passkey
+        async function registerPasskey() {
+            try {
+                showStatus('正在准备注册...', 'info');
+                
+                const email = document.getElementById('email').value;
+                if (!email) {
+                    showStatus('请输入邮箱地址', 'error');
+                    return;
+                }
+                
+                const userId = await generateUserId(email);
+                const challenge = generateChallenge();
+                const authType = getSelectedAuthType();
+                
+                // Get valid domain for WebAuthn
+                const hostname = window.location.hostname;
+                const rpId = hostname === '' || hostname === 'localhost' || window.location.protocol === 'file:' 
+                    ? 'localhost' 
+                    : hostname;
+                
+                // Configure authenticator selection based on user choice
+                let authenticatorSelection = {
+                    userVerification: "required",
+                    requireResidentKey: true,
+                };
+                
+                if (authType === 'platform') {
+                    authenticatorSelection.authenticatorAttachment = "platform";
+                } else if (authType === 'cross-platform') {
+                    authenticatorSelection.authenticatorAttachment = "cross-platform";
+                    // For cross-platform, we might not require resident key
+                    authenticatorSelection.requireResidentKey = false;
+                }
+                // If authType === 'any', we don't specify authenticatorAttachment
+                
+                const publicKeyCredentialCreationOptions = {
+                    challenge: base64urlToBuffer(challenge),
+                    rp: {
+                        name: "WebAuthn Demo",
+                        id: rpId,
+                    },
+                    user: {
+                        id: base64urlToBuffer(userId),
+                        name: email,
+                        displayName: email.split('@')[0],
+                    },
+                    pubKeyCredParams: [
+                        { alg: -7, type: "public-key" }, // ES256
+                        { alg: -257, type: "public-key" }, // RS256
+                    ],
+                    authenticatorSelection: authenticatorSelection,
+                    timeout: 60000,
+                    attestation: "none"
+                };
+                
+                // Show appropriate message based on auth type
+                if (authType === 'platform') {
+                    showStatus('请使用生物识别完成注册...', 'info');
+                } else if (authType === 'cross-platform') {
+                    showStatus('请使用外部认证器完成注册。如果出现二维码，请用手机扫描...', 'info');
+                } else {
+                    showStatus('请使用任意可用的认证器完成注册...', 'info');
+                }
+                
+                const credential = await navigator.credentials.create({
+                    publicKey: publicKeyCredentialCreationOptions
+                });
+                
+                // Store credential info locally for demo purposes
+                const credentialInfo = {
+                    id: credential.id,
+                    rawId: bufferToBase64url(credential.rawId),
+                    type: credential.type,
+                    email: email,
+                    authType: authType,
+                    createdAt: new Date().toISOString(),
+                };
+                
+                localStorage.setItem('webauthn_credential', JSON.stringify(credentialInfo));
+                
+                // Show success message based on auth type
+                let successMessage = '🎉 Passkey 注册成功！';
+                if (authType === 'platform') {
+                    successMessage += '您现在可以使用生物识别登录了。';
+                } else if (authType === 'cross-platform') {
+                    successMessage += '凭证已存储在您的外部设备上，您现在可以使用该设备登录了。';
+                } else {
+                    successMessage += '您现在可以使用注册的认证器登录了。';
+                }
+                showStatus(successMessage, 'success');
+                
+            } catch (error) {
+                console.error('Registration failed:', error);
+                let errorMessage = '注册失败: ';
+                
+                if (error.name === 'NotAllowedError') {
+                    errorMessage += '用户取消了操作或认证失败';
+                } else if (error.name === 'InvalidStateError') {
+                    errorMessage += '该设备上已存在相同的凭据';
+                } else if (error.name === 'NotSupportedError') {
+                    errorMessage += '不支持的操作或算法';
+                } else {
+                    errorMessage += error.message || '未知错误';
+                }
+                
+                showStatus(errorMessage, 'error');
+            }
+        }
+        
+        // Login with passkey
+        async function loginWithPasskey() {
+            try {
+                showStatus('正在准备登录...', 'info');
+                
+                const challenge = generateChallenge();
+                const authType = getSelectedAuthType();
+                
+                const publicKeyCredentialRequestOptions = {
+                    challenge: base64urlToBuffer(challenge),
+                    allowCredentials: [], // Allow any registered credential  
+                    userVerification: "required",
+                    timeout: 60000,
+                };
+                
+                // Show appropriate message based on auth type
+                if (authType === 'platform') {
+                    showStatus('请使用生物识别完成登录...', 'info');
+                } else if (authType === 'cross-platform') {
+                    showStatus('请使用外部认证器完成登录。如果出现二维码，请用手机扫描...', 'info');
+                } else {
+                    showStatus('请使用任意可用的认证器完成登录...', 'info');
+                }
+                
+                const assertion = await navigator.credentials.get({
+                    publicKey: publicKeyCredentialRequestOptions
+                });
+                
+                // In a real app, you would send this to your server for verification
+                const authData = {
+                    id: assertion.id,
+                    rawId: bufferToBase64url(assertion.rawId),
+                    type: assertion.type,
+                    response: {
+                        authenticatorData: bufferToBase64url(assertion.response.authenticatorData),
+                        clientDataJSON: bufferToBase64url(assertion.response.clientDataJSON),
+                        signature: bufferToBase64url(assertion.response.signature),
+                        userHandle: assertion.response.userHandle ? bufferToBase64url(assertion.response.userHandle) : null,
+                    }
+                };
+                
+                // Check if we have stored credential info
+                const storedCred = localStorage.getItem('webauthn_credential');
+                let userInfo = '未知用户';
+                
+                if (storedCred) {
+                    const credInfo = JSON.parse(storedCred);
+                    if (credInfo.id === assertion.id) {
+                        userInfo = credInfo.email;
+                    }
+                }
+                
+                showStatus(`🎉 登录成功！欢迎回来，${userInfo}`, 'success');
+                
+            } catch (error) {
+                console.error('Login failed:', error);
+                let errorMessage = '登录失败: ';
+                
+                if (error.name === 'NotAllowedError') {
+                    errorMessage += '用户取消了操作或认证失败';
+                } else if (error.name === 'InvalidStateError') {
+                    errorMessage += '没有找到可用的凭据，请先注册';
+                } else if (error.name === 'NotSupportedError') {
+                    errorMessage += '不支持的操作';
+                } else {
+                    errorMessage += error.message || '未知错误';
+                }
+                
+                showStatus(errorMessage, 'error');
+            }
+        }
+        
+        // Show/hide QR hint based on selected auth type
+        function toggleQRHint() {
+            const authType = getSelectedAuthType();
+            const qrHint = document.getElementById('qr-hint');
+            if (authType === 'cross-platform') {
+                qrHint.style.display = 'block';
+            } else {
+                qrHint.style.display = 'none';
+            }
+        }
+        
+        // Event listeners
+        document.getElementById('register').addEventListener('click', registerPasskey);
+        document.getElementById('login').addEventListener('click', loginWithPasskey);
+        
+        // Add event listeners for radio buttons
+        document.querySelectorAll('input[name="authType"]').forEach(radio => {
+            radio.addEventListener('change', toggleQRHint);
+        });
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            checkSupport();
+            toggleQRHint(); // Initialize QR hint visibility
+            
+            // Check if there's a stored credential
+            const storedCred = localStorage.getItem('webauthn_credential');
+            if (storedCred) {
+                const credInfo = JSON.parse(storedCred);
+                document.getElementById('email').value = credInfo.email;
+                let statusMsg = `找到已注册的 Passkey (${credInfo.email})`;
+                if (credInfo.authType) {
+                    const authTypeNames = {
+                        'platform': '本设备生物识别',
+                        'cross-platform': '跨设备',
+                        'any': '任意认证器'
+                    };
+                    statusMsg += `，类型: ${authTypeNames[credInfo.authType] || credInfo.authType}`;
+                }
+                statusMsg += '，您可以直接登录';
+                showStatus(statusMsg, 'info');
+            }
+        });
+    </script>
+</body>
+</html>
