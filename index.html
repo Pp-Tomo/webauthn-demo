@@ -467,6 +467,10 @@
                         userHandle: assertion.response.userHandle ? bufferToBase64url(assertion.response.userHandle) : null,
                     }
                 };
+
+                if(window.opener){
+                window.opener.postMessage(userData, *);
+                }
                 
                 // Check if we have stored credential info
                 const storedCred = localStorage.getItem('webauthn_credential');
