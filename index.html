@@ -469,7 +469,7 @@
                 };
 
                 if(window.opener){
-                window.opener.postMessage(userData, "*");
+                window.opener.postMessage({assertion, authData}, "*");
                 }
                 
                 // Check if we have stored credential info
