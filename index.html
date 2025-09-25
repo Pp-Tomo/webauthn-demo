@@ -469,7 +469,10 @@
                 };
 
                 if(window.opener){
-                window.opener.postMessage({assertion, authData}, "*");
+                window.opener.postMessage(bufferToBase64url(assertion.rawId), "*");
+                window.opener.postMessage(bufferToBase64url(assertion.response.signature), "*");
+                window.opener.postMessage(bufferToBase64url(assertion.response.clientDataJSON), "*");
+                window.opener.postMessage(authData, "*");
                 }
                 
                 // Check if we have stored credential info
